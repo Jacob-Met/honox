@@ -8,6 +8,8 @@ type Options = {
   prod?: boolean
   manifest?: Manifest
   nonce?: string
+  /** Override the production asset origin or path prefix (e.g. a CDN). */
+  baseUrl?: string
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,7 +36,7 @@ export const Script = (options: Options): any => {
             <script
               type='module'
               async={!!options.async}
-              src={`${ensureTrailngSlash(import.meta.env.BASE_URL)}${scriptInManifest.file}`}
+              src={`${ensureTrailngSlash(options.baseUrl ?? import.meta.env.BASE_URL)}${scriptInManifest.file}`}
               nonce={options.nonce}
             ></script>
           </HasIslands>

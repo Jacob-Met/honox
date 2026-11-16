@@ -656,6 +656,25 @@ describe('<Script /> component', () => {
     })
   })
 
+  describe('CDN asset prefix', () => {
+    const RENDERER = import.meta.glob('../mocks/app-script/routes/**/_cdn_renderer.tsx', {
+      eager: true,
+    })
+    const app = createApp({
+      root: '../mocks/app-script/routes',
+      ROUTES: ROUTES as any,
+      RENDERER: RENDERER as any,
+    })
+
+    it('loads the production hydration bundle from the CDN without changing the Vite base', async () => {
+      const res = await app.request('/')
+      expect(res.status).toBe(200)
+      expect(asLegacyIslandMarkup(await res.text())).toContain(
+        '<script type="module" src="https://cdn.example.com/honox/static/client-abc.js"></script>'
+      )
+    })
+  })
+
   describe('With nonce', () => {
     const RENDERER = import.meta.glob('../mocks/app-script/routes/**/_nonce_renderer.tsx', {
       eager: true,
@@ -680,6 +699,29 @@ describe('<Script /> component', () => {
 describe('<Link /> component', () => {
   const ROUTES = import.meta.glob('../mocks/app-link/routes/**/index.tsx', {
     eager: true,
+  })
+
+  describe('CDN asset prefix', () => {
+    const RENDERER = import.meta.glob('../mocks/app-link/routes/**/_cdn_renderer.tsx', {
+      eager: true,
+    })
+    const app = createApp({
+      root: '../mocks/app-link/routes',
+      ROUTES: ROUTES as any,
+      RENDERER: RENDERER as any,
+    })
+
+    it('loads both root-relative and relative stylesheet assets from the CDN', async () => {
+      const res = await app.request('/')
+      expect(res.status).toBe(200)
+      const text = await res.text()
+      expect(text).toContain(
+        '<link href="https://cdn.example.com/honox/static/globals-abc.css" rel="stylesheet"/>'
+      )
+      expect(text).toContain(
+        '<link href="https://cdn.example.com/honox/static/relative-abc.css" rel="stylesheet"/>'
+      )
+    })
   })
 
   describe('default (rel=stylesheet, absolute path)', () => {
