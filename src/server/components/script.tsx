@@ -40,6 +40,12 @@ export const Script = (options: Options): any => {
           </HasIslands>
         )
       }
+      console.warn(`[honox] <Script> did not render: "${src}" is not in the client build manifest.`)
+    } else {
+      console.warn(
+        '[honox] <Script> did not render: could not find /dist/.vite/manifest.json. ' +
+          'Make sure the client build runs before the server build.'
+      )
     }
     return <></>
   } else {

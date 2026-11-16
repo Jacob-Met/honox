@@ -34,6 +34,12 @@ export const Link: FC<Options> = (options) => {
 
           return <link href={assetInManifest.file} {...rest}></link>
         }
+        console.warn(`[honox] <Link> did not render: "${href}" is not in the client build manifest.`)
+      } else {
+        console.warn(
+          '[honox] <Link> did not render: could not find /dist/.vite/manifest.json. ' +
+            'Make sure the client build runs before the server build.'
+        )
       }
       return <></>
     } else {

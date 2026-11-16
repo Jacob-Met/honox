@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Hono } from 'hono'
 import { poweredBy } from 'hono/powered-by'
-import { createApp } from '../src/server'
+import { createApp, Link, Script } from '../src/server'
 
 describe('Basic', () => {
   const ROUTES = import.meta.glob('../mocks/app/routes/**/[a-z[-][a-z[_-]*.(tsx|ts|mdx)', {
@@ -726,6 +726,73 @@ describe('<Link /> component', () => {
         )
       })
     })
+  })
+})
+
+describe('Missing client manifest diagnostics', () => {
+  it('does not warn for valid manifest entries or development assets', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      Script({
+        src: '/app/client.ts',
+        prod: true,
+        manifest: { 'app/client.ts': { file: 'static/client.js' } },
+      })
+      Link({
+        href: '/app/style.css',
+        prod: true,
+        manifest: { 'app/style.css': { file: 'static/style.css' } },
+      })
+      Script({ src: '/app/client.ts', prod: false })
+      Link({ href: '/app/style.css', prod: false })
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('warns when Script cannot load the production manifest', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      Script({ src: '/app/client.ts', prod: true })
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('could not find /dist/.vite/manifest.json')
+      )
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('warns when Script entry is absent from the manifest', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      Script({ src: '/app/client.ts', prod: true, manifest: {} })
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('"/app/client.ts"'))
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('warns when Link cannot load the production manifest', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      Link({ href: '/app/style.css', prod: true })
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('could not find /dist/.vite/manifest.json')
+      )
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('warns when Link entry is absent from the manifest', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      Link({ href: '/app/style.css', prod: true, manifest: {} })
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('"/app/style.css"'))
+    } finally {
+      warn.mockRestore()
+    }
   })
 })
 
