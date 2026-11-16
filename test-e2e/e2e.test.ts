@@ -137,3 +137,15 @@ test('/app/nested', async ({ page }) => {
   const contentH1 = await page.textContent('h1')
   expect(contentH1).toBe('Nested')
 })
+
+test('island root is a real CSS direct child and hydrates without a wrapper', async ({ page }) => {
+  await page.goto('/interaction/direct-child')
+  await page.waitForSelector('body[data-client-loaded]')
+
+  const input = page.locator('#direct-child-label > input')
+  await expect(input).toHaveCount(1)
+  await expect(page.locator('honox-island')).toHaveCount(0)
+  await expect(input).toHaveCSS('border-top-width', '5px')
+  await input.fill('hydrated')
+  await expect(input).toHaveValue('hydrated')
+})

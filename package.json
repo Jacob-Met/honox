@@ -27,6 +27,7 @@
     ".": "./dist/index.js",
     "./client": "./dist/client/index.js",
     "./client/client": "./dist/client/client.js",
+    "./client/island-range": "./dist/client/island-range.js",
     "./client/runtime": "./dist/client/runtime.js",
     "./client/utils/dom": "./dist/client/utils/dom.js",
     "./client/utils/filter": "./dist/client/utils/filter.js",

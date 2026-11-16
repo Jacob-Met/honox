@@ -12,7 +12,22 @@ describe('HonoXIsland', () => {
         children: <TestComponent />,
       },
     })
-    // XXX: tested by internal implementation
-    expect((element as any).children[1][0].key).toBe('children')
+    expect(element.toString()).toContain('data-hono-template="children"')
+  })
+})
+
+describe('transparent HTML island root', () => {
+  it('does not insert an element between a label and its input child', () => {
+    const html = HonoXIsland({
+      componentName: '/app/islands/Input.tsx',
+      componentExport: 'default',
+      Component: () => <input id='choice' type='checkbox' />,
+      props: {},
+    }).toString()
+    const label = document.createElement('label')
+    label.innerHTML = html
+    expect(label.querySelector(':scope > input#choice')).not.toBeNull()
+    expect(label.querySelector('honox-island')).toBeNull()
+    expect(label.childNodes[0].nodeType).toBe(Node.COMMENT_NODE)
   })
 })
