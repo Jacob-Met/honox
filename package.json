@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "prepare": "tsdown",
-    "test": "bun typecheck && bun test:unit && bun test:integration && bun test:e2e",
+    "test": "bun typecheck && bun test:unit && bun test:integration && bun test:e2e && bun test:non-vite",
     "test:unit": "vitest --run ./src",
     "test:integration": "bun test:integration:api && bun test:integration:apps",
     "test:integration:api": "vitest --run ./test-integration/api.test.ts",
@@ -18,7 +18,8 @@
     "format": "prettier --check \"src/**/*.{js,ts}\" \"mocks/**/*.{js,ts}\" \"test-*/**/*.{js,ts}\"",
     "format:fix": "prettier --write \"src/**/*.{js,ts}\" \"mocks/**/*.{js,ts}\" \"test-*/**/*.{js,ts}\"",
     "prerelease": "bun run test && bun run build",
-    "release": "np --no-publish"
+    "release": "np --no-publish",
+    "test:non-vite": "bun run build && node --test test-integration/non-vite.node.mjs"
   },
   "files": [
     "dist"
