@@ -1,9 +1,12 @@
+import { raw } from 'hono/html'
 import { createContext, useContext, isValidElement } from 'hono/jsx'
 import {
   COMPONENT_NAME,
   COMPONENT_EXPORT,
   DATA_SERIALIZED_PROPS,
   DATA_HONO_TEMPLATE,
+  ISLAND_START,
+  ISLAND_END,
 } from '../../constants'
 
 const inIsland = Symbol()
@@ -44,7 +47,33 @@ export const HonoXIsland = ({
   }
 
   const islandState = useContext(IslandContext)
-  return islandState[inChildren] || !islandState[inIsland] ? (
+  if (!islandState[inIsland] && !islandState[inChildren]) {
+    const metadata = encodeURIComponent(
+      JSON.stringify({
+        componentName,
+        componentExport: componentExport || 'default',
+        props: restProps,
+      })
+    ).replaceAll('-', '%2D')
+    return (
+      <>
+        {raw(`<!--${ISLAND_START}${metadata}-->`)}
+        <IslandContext.Provider value={{ ...islandState, [inIsland]: true }}>
+          <Component {...props} />
+        </IslandContext.Provider>
+        {Object.entries(elementProps).map(([key, children]) => (
+          <template {...{ [DATA_HONO_TEMPLATE]: key }} key={key}>
+            <IslandContext.Provider value={{ ...islandState, [inChildren]: true }}>
+              {children}
+            </IslandContext.Provider>
+          </template>
+        ))}
+        {raw(`<!--${ISLAND_END}-->`)}
+      </>
+    )
+  }
+
+  return islandState[inChildren] ? (
     // top-level or slot content
     <honox-island
       {...{

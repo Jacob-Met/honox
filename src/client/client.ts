@@ -12,6 +12,7 @@ import type {
   HydrateComponent,
   TriggerHydration,
 } from '../types.js'
+import { createIslandRangeContainer, findIslandRanges } from './island-range.js'
 import { isTemplateElement } from './utils/dom.js'
 import { filterByPattern } from './utils/filter.js'
 
@@ -52,61 +53,79 @@ export const createClient = async <E = Node>(options?: ClientOptions<E>) => {
       ]
     )
 
+  const hydratedRanges = new WeakSet<Comment>()
+
   const hydrateComponent: HydrateComponent = async (document) => {
+    const ranges = 'nodeType' in document ? findIslandRanges(document as unknown as ParentNode) : []
     const filePromises = Object.keys(FILES).map(async (filePath) => {
-      const componentName = filePath
       const elements = document.querySelectorAll(
-        `[${COMPONENT_NAME}="${componentName}"]:not([data-hono-hydrated])`
+        '[' + COMPONENT_NAME + '="' + filePath + '"]:not([data-hono-hydrated])'
       )
-      if (elements) {
-        const elementPromises = Array.from(elements).map(async (element) => {
-          element.setAttribute('data-hono-hydrated', 'true') // mark as hydrated
-          const exportName = element.getAttribute(COMPONENT_EXPORT) || 'default'
+      const matchedRanges = ranges.filter(
+        (range) => range.componentName === filePath && !hydratedRanges.has(range.start)
+      )
+      if (elements.length === 0 && matchedRanges.length === 0) return
 
-          const fileCallback = FILES[filePath] as FileCallback
-          const file = await fileCallback()
-          const Component = await file[exportName]
-
-          const serializedProps = element.attributes.getNamedItem(DATA_SERIALIZED_PROPS)?.value
-          const props = JSON.parse(serializedProps ?? '{}') as Record<string, unknown>
-
-          const hydrate = options?.hydrate ?? render
-          // The fallback cast is unsound when `E` is specialized without
-          // `options.createElement`: hono's `createElement` returns `JSXNode`,
-          // not `E`. Callers that customize `E` must supply their own
-          // `createElement` (and a matching `hydrate`).
-          const createElement = options?.createElement ?? (createElementHono as CreateElement<E>)
-
-          let maybeTemplate: ChildNode | null | undefined =
-            element.childNodes[element.childNodes.length - 1]
-          while (isTemplateElement(maybeTemplate)) {
-            const propKey = maybeTemplate.getAttribute(DATA_HONO_TEMPLATE)
-            if (propKey == null) {
-              break
+      const fileCallback = FILES[filePath] as FileCallback
+      const file = await fileCallback()
+      const hydrateTarget = async (
+        container: Element,
+        exportName: string,
+        props: Record<string, unknown>,
+        lastChild: ChildNode | null | undefined
+      ) => {
+        const Component = await file[exportName]
+        let maybeTemplate = lastChild
+        while (isTemplateElement(maybeTemplate)) {
+          const propKey = maybeTemplate.getAttribute(DATA_HONO_TEMPLATE)
+          if (propKey == null) break
+          let createChildren = options?.createChildren
+          if (!createChildren) {
+            const { buildCreateChildrenFn } = await import('./runtime')
+            const importComponent = async (name: string, exportName = 'default') => {
+              const fileCallback = FILES[name] as FileCallback | undefined
+              return fileCallback ? (await fileCallback())[exportName] : undefined
             }
-
-            let createChildren = options?.createChildren
-            if (!createChildren) {
-              const { buildCreateChildrenFn } = await import('./runtime')
-              const importComponent = async (name: string, exportName = 'default') => {
-                const fileCallback = FILES[name] as FileCallback | undefined
-                return fileCallback ? (await fileCallback())[exportName] : undefined
-              }
-              createChildren = buildCreateChildrenFn<E>(createElement, importComponent)
-            }
-            props[propKey] = await createChildren(maybeTemplate.content.childNodes)
-
-            maybeTemplate = maybeTemplate.previousSibling
+            createChildren = buildCreateChildrenFn<E>(
+              options?.createElement ?? (createElementHono as CreateElement<E>),
+              importComponent
+            )
           }
+          props[propKey] = await createChildren(maybeTemplate.content.childNodes)
+          maybeTemplate = maybeTemplate.previousSibling
+        }
 
-          const newElem = await createElement(Component, props)
-          // @ts-expect-error default `render` cause a type error
-          await hydrate(newElem, element)
-        })
-        await Promise.all(elementPromises)
+        const createElement = options?.createElement ?? (createElementHono as CreateElement<E>)
+        const hydrate = options?.hydrate ?? render
+        const newElem = await createElement(Component, props)
+        // @ts-expect-error default render causes a type mismatch with generic E
+        await hydrate(newElem, container)
       }
-    })
 
+      await Promise.all([
+        ...Array.from(elements).map((element) => {
+          element.setAttribute('data-hono-hydrated', 'true')
+          const exportName = element.getAttribute(COMPONENT_EXPORT) || 'default'
+          const serializedProps = element.getAttribute(DATA_SERIALIZED_PROPS)
+          const props = JSON.parse(serializedProps ?? '{}') as Record<string, unknown>
+          return hydrateTarget(
+            element,
+            exportName,
+            props,
+            element.childNodes[element.childNodes.length - 1]
+          )
+        }),
+        ...matchedRanges.map((range) => {
+          hydratedRanges.add(range.start)
+          return hydrateTarget(
+            createIslandRangeContainer(range.start, range.end),
+            range.componentExport,
+            range.props,
+            range.end.previousSibling
+          )
+        }),
+      ])
+    })
     await Promise.all(filePromises)
   }
 
