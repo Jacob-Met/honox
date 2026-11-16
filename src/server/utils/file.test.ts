@@ -135,6 +135,41 @@ describe('listByDirectory', () => {
   })
 })
 
+describe('directory ancestry', () => {
+  it('continues to inherit renderers from the relative root directory', () => {
+    expect(
+      listByDirectory({
+        '_renderer.tsx': 'root',
+        'blog/_renderer.tsx': 'blog',
+      })
+    ).toEqual({
+      '': ['_renderer.tsx'],
+      blog: ['blog/_renderer.tsx', '_renderer.tsx'],
+    })
+  })
+
+  it('does not inherit renderers from sibling directories with a shared prefix', () => {
+    const files = {
+      '/app/routes/_renderer.tsx': 'root',
+      '/app/routes/blog/_renderer.tsx': 'blog',
+      '/app/routes/blog/posts/_renderer.tsx': 'posts',
+      '/app/routes/blog-archive/_renderer.tsx': 'archive',
+    }
+
+    const result = listByDirectory(files)
+
+    expect(result['/app/routes/blog-archive']).toEqual([
+      '/app/routes/blog-archive/_renderer.tsx',
+      '/app/routes/_renderer.tsx',
+    ])
+    expect(result['/app/routes/blog/posts']).toEqual([
+      '/app/routes/blog/posts/_renderer.tsx',
+      '/app/routes/blog/_renderer.tsx',
+      '/app/routes/_renderer.tsx',
+    ])
+  })
+})
+
 describe('pathToDirectoryPath', () => {
   it('Should return the directory path', () => {
     expect(pathToDirectoryPath('/')).toBe('/')
