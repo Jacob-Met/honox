@@ -120,6 +120,10 @@ describe('Basic', () => {
         method: 'GET',
       },
       {
+        path: '/custom',
+        method: 'GET',
+      },
+      {
         path: '/fc',
         method: 'GET',
       },
@@ -139,7 +143,7 @@ describe('Basic', () => {
         method: 'GET',
       },
     ]
-    expect(app.routes).toHaveLength(71)
+    expect(app.routes).toHaveLength(74)
     expect(app.routes).toEqual(
       expect.arrayContaining(
         routes.map(({ path, method }) => {
