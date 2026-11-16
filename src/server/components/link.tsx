@@ -3,10 +3,15 @@ import type { JSX } from 'hono/jsx/jsx-runtime'
 import type { Manifest } from 'vite'
 import { ensureTrailngSlash, warnMissingClientAsset } from '../utils/path.js'
 
-type Options = { manifest?: Manifest; prod?: boolean } & JSX.IntrinsicElements['link']
+type Options = {
+  manifest?: Manifest
+  prod?: boolean
+  /** Override the production asset origin or path prefix (e.g. a CDN). */
+  baseUrl?: string
+} & JSX.IntrinsicElements['link']
 
 export const Link: FC<Options> = (options) => {
-  let { href, prod, manifest, ...rest } = options
+  let { href, prod, manifest, baseUrl, ...rest } = options
   if (href) {
     if (prod ?? import.meta.env.PROD) {
       if (!manifest) {
@@ -23,10 +28,10 @@ export const Link: FC<Options> = (options) => {
       if (manifest) {
         const assetInManifest = manifest[href.replace(/^\//, '')]
         if (assetInManifest) {
-          if (href.startsWith('/')) {
+          if (href.startsWith('/') || baseUrl !== undefined) {
             return (
               <link
-                href={`${ensureTrailngSlash(import.meta.env.BASE_URL)}${assetInManifest.file}`}
+                href={`${ensureTrailngSlash(baseUrl ?? import.meta.env.BASE_URL)}${assetInManifest.file}`}
                 {...rest}
               ></link>
             )
