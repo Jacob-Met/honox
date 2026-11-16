@@ -12,12 +12,10 @@ import {
   importDeclaration,
   importSpecifier,
   jsxAttribute,
-  jsxClosingElement,
   jsxElement,
   jsxExpressionContainer,
   jsxIdentifier,
   jsxOpeningElement,
-  jsxSpreadAttribute,
   memberExpression,
   metaProperty,
   returnStatement,
@@ -58,8 +56,15 @@ function addSSRCheck(funcName: string, componentName: string, componentExport?: 
   )
 
   const clientElement = jsxElement(
-    jsxOpeningElement(jsxIdentifier(funcName), [jsxSpreadAttribute(identifier('props'))], false),
-    jsxClosingElement(jsxIdentifier(funcName)),
+    jsxOpeningElement(
+      jsxIdentifier('HonoXClientIsland'),
+      [
+        jsxAttribute(jsxIdentifier('Component'), jsxExpressionContainer(identifier(funcName))),
+        jsxAttribute(jsxIdentifier('props'), jsxExpressionContainer(identifier('props'))),
+      ],
+      true
+    ),
+    null,
     []
   )
 
@@ -186,7 +191,10 @@ export const transformJsxTags = (contents: string, componentName: string) => {
     if (isTransformed) {
       ast.program.body.unshift(
         importDeclaration(
-          [importSpecifier(identifier('HonoXIsland'), identifier('HonoXIsland'))],
+          [
+            importSpecifier(identifier('HonoXIsland'), identifier('HonoXIsland')),
+            importSpecifier(identifier('HonoXClientIsland'), identifier('HonoXClientIsland')),
+          ],
           stringLiteral('honox/vite/components')
         )
       )

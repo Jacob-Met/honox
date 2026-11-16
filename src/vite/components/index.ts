@@ -1,1 +1,1 @@
-export { HonoXIsland } from './honox-island.js'
+export { HonoXIsland, HonoXClientIsland } from './honox-island.js'

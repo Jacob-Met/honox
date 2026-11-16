@@ -76,6 +76,10 @@ describe('Basic', () => {
         method: 'GET',
       },
       {
+        path: '/interaction/async-client',
+        method: 'GET',
+      },
+      {
         path: '/interaction/anywhere',
         method: 'GET',
       },
@@ -143,7 +147,7 @@ describe('Basic', () => {
         method: 'GET',
       },
     ]
-    expect(app.routes).toHaveLength(74)
+    expect(app.routes).toHaveLength(78)
     expect(app.routes).toEqual(
       expect.arrayContaining(
         routes.map(({ path, method }) => {
