@@ -2,6 +2,8 @@
 import { Hono } from 'hono'
 import { poweredBy } from 'hono/powered-by'
 import { createApp } from '../src/server'
+import { Link } from '../src/server/components/link'
+import { Script } from '../src/server/components/script'
 
 describe('Basic', () => {
   const ROUTES = import.meta.glob('../mocks/app/routes/**/[a-z[-][a-z[_-]*.(tsx|ts|mdx)', {
@@ -1189,5 +1191,73 @@ describe('Renderer loading when mounted with special route patterns', () => {
         })
       })
     })
+  })
+})
+
+describe('Missing production client assets', () => {
+  it('explains when the client manifest cannot be found', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      Script({ src: '/app/missing-client-manifest-381.ts', prod: true })
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('dist/.vite/manifest.json'))
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('client build'))
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('names missing script entries once instead of flooding production logs', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const options = {
+        src: '/app/not-in-manifest-381.ts',
+        prod: true,
+        manifest: {},
+      }
+      Script(options)
+      Script(options)
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('/app/not-in-manifest-381.ts'))
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('names missing stylesheet entries once instead of silently dropping CSS', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const options = {
+        href: '/app/not-in-manifest-381.css',
+        prod: true,
+        manifest: {},
+        rel: 'stylesheet' as const,
+      }
+      Link(options)
+      Link(options)
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('/app/not-in-manifest-381.css'))
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('leaves valid script and stylesheet entries free of warnings', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      Script({
+        src: '/app/working-client-381.ts',
+        prod: true,
+        manifest: { 'app/working-client-381.ts': { file: 'static/client.js' } },
+      })
+      Link({
+        href: '/app/working-style-381.css',
+        prod: true,
+        manifest: { 'app/working-style-381.css': { file: 'static/style.css' } },
+        rel: 'stylesheet',
+      })
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      warn.mockRestore()
+    }
   })
 })
