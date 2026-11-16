@@ -129,15 +129,45 @@ export const createClient = async <E = Node>(options?: ClientOptions<E>) => {
     await Promise.all(filePromises)
   }
 
+  // Observe the actual document rather than just the parents of Suspense templates.
+  // HTML swaps (HTMX, Turbo, streamed content) may introduce island roots at any time.
+  const observeNewIslands = () => {
+    const pending = new Set<Element>()
+    let scheduled = false
+    const flush = () => {
+      scheduled = false
+      const targets = [...pending]
+      pending.clear()
+      for (const target of targets) {
+        if (!target.isConnected) continue
+        void hydrateComponent(target).catch((error) => {
+          console.error('[honox] Failed to hydrate dynamically inserted island', error)
+        })
+      }
+    }
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (!(mutation.target instanceof Element) || mutation.addedNodes.length === 0) continue
+        // Text-only updates from an already hydrated component need no re-scan.
+        if (Array.from(mutation.addedNodes).every((node) => node.nodeType === Node.TEXT_NODE)) {
+          continue
+        }
+        pending.add(mutation.target)
+      }
+      if (pending.size && !scheduled) {
+        scheduled = true
+        queueMicrotask(flush)
+      }
+    })
+    observer.observe(document.documentElement, { childList: true, subtree: true })
+  }
+
   const triggerHydration =
     options?.triggerHydration ??
     (async (hydrateComponent) => {
-      if (document.querySelector('template[id^="H:"], template[id^="E:"]')) {
-        const { hydrateComponentHonoSuspense } = await import('./runtime')
-        await hydrateComponentHonoSuspense(hydrateComponent)
-      }
-
+      observeNewIslands()
       await hydrateComponent(document)
     })
-  await triggerHydration?.(hydrateComponent)
+  await triggerHydration(hydrateComponent)
 }

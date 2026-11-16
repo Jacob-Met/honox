@@ -149,3 +149,36 @@ test('island root is a real CSS direct child and hydrates without a wrapper', as
   await input.fill('hydrated')
   await expect(input).toHaveValue('hydrated')
 })
+
+test('hydrates islands inserted by an HTMX-style HTML swap without reloading the client', async ({
+  page,
+}) => {
+  await page.goto('/interaction/anywhere')
+  await page.waitForSelector('body[data-client-loaded]')
+  const swapHtml = async () => {
+    await page.evaluate(async () => {
+      const response = await fetch('/interaction/anywhere')
+      const html = await response.text()
+      const parsed = new DOMParser().parseFromString(html, 'text/html')
+      const target = document.createElement('section')
+      target.id = 'htmx-target'
+      target.innerHTML = parsed.body.innerHTML
+      document.querySelector('#htmx-target')?.replaceWith(target)
+      if (!target.isConnected) document.body.appendChild(target)
+    })
+  }
+
+  await swapHtml()
+  const target = page.locator('#htmx-target')
+  await expect(target.getByText('Count: 5')).toBeVisible()
+  await target.getByRole('button', { name: 'Increment' }).click()
+  await expect(target.getByText('Count: 6')).toBeVisible()
+  await target.getByRole('button', { name: 'Increment' }).click()
+  await expect(target.getByText('Count: 7')).toBeVisible()
+
+  // A second swap must hydrate a fresh island rather than reuse stale state.
+  await swapHtml()
+  await expect(target.getByText('Count: 5')).toBeVisible()
+  await target.getByRole('button', { name: 'Increment' }).click()
+  await expect(target.getByText('Count: 6')).toBeVisible()
+})
