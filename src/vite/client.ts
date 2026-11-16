@@ -21,7 +21,15 @@ function client(options?: ClientOptions): Plugin {
       }
       return false
     },
-    config: () => {
+    config: function () {
+      // Vite 8 uses Rolldown/Oxc and deprecates `esbuild.jsxImportSource`.
+      // Older Vite releases do not expose the Rolldown config-hook context.
+      const usesOxc = Boolean(
+        (this as unknown as { meta?: { rolldownVersion?: string } } | undefined)?.meta
+          ?.rolldownVersion
+      )
+      const jsxImportSource = options?.jsxImportSource ?? defaultOptions.jsxImportSource
+
       return {
         build: {
           rollupOptions: {
@@ -30,9 +38,9 @@ function client(options?: ClientOptions): Plugin {
           assetsDir: options?.assetsDir ?? defaultOptions.assetsDir,
           manifest: true,
         },
-        esbuild: {
-          jsxImportSource: options?.jsxImportSource ?? defaultOptions.jsxImportSource,
-        },
+        ...(usesOxc
+          ? { oxc: { jsx: { importSource: jsxImportSource } } }
+          : { esbuild: { jsxImportSource } }),
       }
     },
   }
