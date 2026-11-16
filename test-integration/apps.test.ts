@@ -1218,3 +1218,31 @@ describe('Renderer loading when mounted with special route patterns', () => {
     })
   })
 })
+
+describe('Renderer directory isolation', () => {
+  const renderer = (name: string) => ({
+    default: async (c: any, next: any) => {
+      c.setRenderer((content: string) => c.html(`<${name}>${content}</${name}>`))
+      await next()
+    },
+  })
+  const page = (content: string) => ({ default: (c: any) => c.render(content) })
+  const app = createApp({
+    root: '/app/routes',
+    ROUTES: {
+      '/app/routes/blog/index.tsx': page('blog'),
+      '/app/routes/blog/posts/index.tsx': page('posts'),
+      '/app/routes/blog-archive/index.tsx': page('archive'),
+    },
+    RENDERER: {
+      '/app/routes/blog/_renderer.tsx': renderer('blog'),
+      '/app/routes/blog-archive/_renderer.tsx': renderer('archive'),
+    },
+  })
+
+  it('does not render a sibling prefix directory with the wrong renderer', async () => {
+    expect(await (await app.request('/blog')).text()).toBe('<blog>blog</blog>')
+    expect(await (await app.request('/blog/posts')).text()).toBe('<blog>posts</blog>')
+    expect(await (await app.request('/blog-archive')).text()).toBe('<archive>archive</archive>')
+  })
+})
