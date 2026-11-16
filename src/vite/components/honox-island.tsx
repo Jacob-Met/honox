@@ -1,5 +1,6 @@
 import { raw } from 'hono/html'
-import { createContext, useContext, isValidElement } from 'hono/jsx'
+import { createContext, useContext, isValidElement, useEffect, useState } from 'hono/jsx'
+import type { JSX } from 'hono/jsx/jsx-runtime'
 import {
   COMPONENT_NAME,
   COMPONENT_EXPORT,
@@ -47,6 +48,8 @@ export const HonoXIsland = ({
   }
 
   const islandState = useContext(IslandContext)
+  // Async client islands cannot safely make browser-relative fetch calls on the server.
+  const content = Component.constructor.name === 'AsyncFunction' ? <></> : <Component {...props} />
   if (!islandState[inIsland] && !islandState[inChildren]) {
     const metadata = encodeURIComponent(
       JSON.stringify({
@@ -59,7 +62,7 @@ export const HonoXIsland = ({
       <>
         {raw(`<!--${ISLAND_START}${metadata}-->`)}
         <IslandContext.Provider value={{ ...islandState, [inIsland]: true }}>
-          <Component {...props} />
+          {content}
         </IslandContext.Provider>
         {Object.entries(elementProps).map(([key, children]) => (
           <template {...{ [DATA_HONO_TEMPLATE]: key }} key={key}>
@@ -83,7 +86,7 @@ export const HonoXIsland = ({
       }}
     >
       <IslandContext.Provider value={{ ...islandState, [inIsland]: true }}>
-        <Component {...props} />
+        {content}
       </IslandContext.Provider>
       {Object.entries(elementProps).map(([key, children]) => (
         <template {...{ [DATA_HONO_TEMPLATE]: key }} key={key}>
@@ -94,7 +97,43 @@ export const HonoXIsland = ({
       ))}
     </honox-island>
   ) : (
-    // nested component
-    <Component {...props} />
+    // nested component: do not invoke browser-only async work on the server
+    content
   )
+}
+
+/** Resolve async islands after mount, where browser APIs such as relative fetch are available. */
+export const HonoXClientIsland = ({
+  Component,
+  props,
+}: {
+  Component: Function
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  props: any
+}) => {
+  if (Component.constructor.name !== 'AsyncFunction') {
+    return <Component {...props} />
+  }
+
+  const [state, setState] = useState<
+    { status: 'loading' } | { status: 'ready'; element: JSX.Element } | { status: 'error'; error: unknown }
+  >({ status: 'loading' })
+  useEffect(() => {
+    let active = true
+    setState({ status: 'loading' })
+    Promise.resolve(Component(props)).then(
+      (element) => {
+        if (active) setState({ status: 'ready', element })
+      },
+      (error) => {
+        if (active) setState({ status: 'error', error })
+      }
+    )
+    return () => {
+      active = false
+    }
+  }, [Component, props])
+
+  if (state.status === 'error') throw state.error
+  return state.status === 'ready' ? state.element : <template data-honox-async-loading='' />
 }
