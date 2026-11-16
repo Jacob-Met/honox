@@ -32,7 +32,7 @@ export async function injectImportingIslands(
   options?: InjectImportingIslandsOptions
 ): Promise<Plugin> {
   let appPath = ''
-  const islandDir = options?.islandDir ?? '/app/islands'
+  const islandDir = (options?.islandDir ?? '/app/islands').replace(/\/+$/, '')
   let root = ''
   let config: ResolvedConfig
   const depTreeCache = new Map<string, string[]>()

@@ -370,3 +370,40 @@ describe('options', () => {
     })
   })
 })
+
+describe('custom island directory hydration', () => {
+  it('loads the HonoX client with a custom glob instead of the default island directory', async () => {
+    const clientModule = path.resolve(__dirname, '../client/client.ts')
+    const plugin = islandComponents({ islandDir: '/app/custom' })
+    const transformed = await (plugin.load as Function)(clientModule)
+
+    expect(transformed?.code).toMatch(/import\.meta\.glob\(['"]\/app\/custom\/\*\*\/\*\.tsx['"]\)/)
+    expect(transformed?.code).not.toMatch(/import\.meta\.glob\(['"]\/app\/islands\//)
+  })
+
+  it('supports an islandDir with a trailing slash', async () => {
+    const clientModule = path.resolve(__dirname, '../client/client.ts')
+    const plugin = islandComponents({ islandDir: '/app/custom/' })
+    const transformed = await (plugin.load as Function)(clientModule)
+    expect(transformed?.code).toContain('/app/custom/**/*.tsx')
+    expect(transformed?.code).not.toContain('/app/custom//**/*.tsx')
+  })
+
+  it('rewrites the published JS client module while leaving other imports alone', async () => {
+    const testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'honox-client-'))
+    const clientModule = path.resolve(testDir, 'honox/dist/client/client.js')
+    await fs.mkdir(path.dirname(clientModule), { recursive: true })
+    await fs.writeFile(
+      clientModule,
+      'const unchanged = "test"; const files = import.meta.glob("/app/islands/**/*.tsx")'
+    )
+    try {
+      const plugin = islandComponents({ islandDir: '/app/custom' })
+      const transformed = await (plugin.load as Function)(clientModule)
+      expect(transformed?.code).toContain('import.meta.glob("/app/custom/**/*.tsx")')
+      expect(transformed?.code).toContain('const unchanged = "test"')
+    } finally {
+      await fs.rm(testDir, { recursive: true, force: true })
+    }
+  })
+})

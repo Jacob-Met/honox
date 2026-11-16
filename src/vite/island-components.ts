@@ -210,7 +210,7 @@ export type IslandComponentsOptions = {
 export function islandComponents(options?: IslandComponentsOptions): Plugin {
   let root = ''
   let reactApiImportSource = options?.reactApiImportSource
-  const islandDir = options?.islandDir ?? '/app/islands'
+  const islandDir = (options?.islandDir ?? '/app/islands').replace(/\/+$/, '')
   return {
     name: 'transform-island-components',
     configResolved: async (config) => {
@@ -240,6 +240,30 @@ export function islandComponents(options?: IslandComponentsOptions): Plugin {
     },
 
     async load(id) {
+      // The client runtime has a static import.meta.glob for the default islands
+      // directory. Vite requires a literal glob, so rewrite it during module load
+      // when the project config uses a different directory.
+      const normalizedId = id.replace(/\\/g, '/').split('?')[0]
+      if (
+        islandDir !== '/app/islands' &&
+        /\/honox\/(?:src|dist)\/client\/client\.(?:ts|js)$/.test(normalizedId)
+      ) {
+        const source = await fs.readFile(normalizedId, 'utf-8')
+        const defaultGlob = /import\.meta\.glob\((['"])\/app\/islands\/\*\*\/\*\.tsx\1\)/
+        if (!defaultGlob.test(source)) {
+          throw new Error(
+            `Cannot configure islandDir '${islandDir}' in ${normalizedId}: the default HonoX client glob is missing. Check that the HonoX client and Vite plugin versions match.`
+          )
+        }
+        return {
+          code: source.replace(
+            defaultGlob,
+            `import.meta.glob(${JSON.stringify(`${islandDir}/**/*.tsx`)})`
+          ),
+          map: null,
+        }
+      }
+
       if (/\/honox\/.*?\/(?:server|vite)\/components\//.test(id)) {
         if (!reactApiImportSource) {
           return

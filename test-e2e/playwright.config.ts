@@ -16,9 +16,16 @@ export default defineConfig({
       retries: 2,
     },
   ],
-  webServer: {
-    command: 'cd ../mocks && vite --port 6173 -c ./vite.config.ts',
-    port: 6173,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: 'cd ../mocks && vite --port 6173 --strictPort -c ./vite.config.ts',
+      port: 6173,
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'cd ../mocks && vite --port 6174 --strictPort -c ./vite-custom-islands.config.ts',
+      port: 6174,
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 })

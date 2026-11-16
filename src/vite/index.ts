@@ -53,7 +53,7 @@ function honox(options?: Options): PluginOption[] {
     plugins.push(islandComponents(options?.islandComponents))
   }
 
-  plugins.push(injectImportingIslands())
+  plugins.push(injectImportingIslands({ islandDir: options?.islandComponents?.islandDir }))
   plugins.push(restartOnAddUnlink())
   plugins.push(client(options?.client))
 
