@@ -1,5 +1,5 @@
 import type { Manifest } from 'vite'
-import { ensureTrailngSlash } from '../utils/path.js'
+import { ensureTrailngSlash, warnMissingClientAsset } from '../utils/path.js'
 import { HasIslands } from './has-islands.js'
 
 type Options = {
@@ -41,6 +41,7 @@ export const Script = (options: Options): any => {
         )
       }
     }
+    warnMissingClientAsset('Script', src, !!manifest)
     return <></>
   } else {
     return <script type='module' async={!!options.async} src={src} nonce={options.nonce}></script>

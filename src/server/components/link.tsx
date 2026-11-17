@@ -1,7 +1,7 @@
 import type { FC } from 'hono/jsx'
 import type { JSX } from 'hono/jsx/jsx-runtime'
 import type { Manifest } from 'vite'
-import { ensureTrailngSlash } from '../utils/path.js'
+import { ensureTrailngSlash, warnMissingClientAsset } from '../utils/path.js'
 
 type Options = { manifest?: Manifest; prod?: boolean } & JSX.IntrinsicElements['link']
 
@@ -35,6 +35,7 @@ export const Link: FC<Options> = (options) => {
           return <link href={assetInManifest.file} {...rest}></link>
         }
       }
+      warnMissingClientAsset('Link', href, !!manifest)
       return <></>
     } else {
       return <link href={href} {...rest}></link>
